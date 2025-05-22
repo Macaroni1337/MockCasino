@@ -114,6 +114,11 @@
       return value;
     };
 
+    const updateHandValues = () => {
+      document.getElementById('player-value').textContent = `Player: ${getHandValue(playerCards)}`;
+      document.getElementById('dealer-value').textContent = `Dealer: ${getHandValue(dealerCards)}`;
+    };
+
     const renderHand = (hand, container) => {
       container.innerHTML = '';
       hand.forEach(card => {
@@ -122,40 +127,30 @@
         cardDiv.innerText = `${card.rank}${card.suit}`;
         container.appendChild(cardDiv);
       });
+      updateHandValues();
     };
 
-    const dealerHand = document.getElementById('dealer-hand');
-    const playerHand = document.getElementById('player-hand');
-    const startBtn = document.getElementById('start-game');
-    const hitBtn = document.getElementById('btn-hit');
-    const standBtn = document.getElementById('btn-stand');
-    const balanceDisplay = document.getElementById('balance-display');
-    const gameMessage = document.getElementById('game-message');
-    const bettingArea = document.getElementById('betting-area');
-
     const updateBalance = () => {
-      balanceDisplay.textContent = `Balance: $${balance.toFixed(2)}`;
+      document.getElementById('balance-display').textContent = `Balance: $${balance.toFixed(2)}`;
     };
 
     const endGame = (result) => {
       if (result === 'win') {
         balance += currentBet;
-        gameMessage.textContent = 'You win!';
+        document.getElementById('game-message').textContent = 'You win!';
       } else if (result === 'lose') {
         balance -= currentBet;
-        gameMessage.textContent = 'You lose!';
+        document.getElementById('game-message').textContent = 'You lose!';
       } else {
-        gameMessage.textContent = 'Push!';
+        document.getElementById('game-message').textContent = 'Push!';
       }
       updateBalance();
       currentBet = 0;
-      startBtn.disabled = true;
+      document.getElementById('start-game').disabled = true;
     };
 
     const checkGameStatus = () => {
       const playerValue = getHandValue(playerCards);
-      const dealerValue = getHandValue(dealerCards);
-
       if (playerValue === 21 && playerCards.length === 2) {
         endGame('win');
       } else if (playerValue > 21) {
@@ -163,56 +158,77 @@
       }
     };
 
-    startBtn.addEventListener('click', () => {
+    document.getElementById('start-game').addEventListener('click', () => {
       if (currentBet === 0) return;
-      gameMessage.textContent = '';
+      document.getElementById('game-message').textContent = '';
       playerCards = [getRandomCard(), getRandomCard()];
       dealerCards = [getRandomCard(), getRandomCard()];
-      renderHand(playerCards, playerHand);
-      renderHand(dealerCards, dealerHand);
+      renderHand(playerCards, document.getElementById('player-hand'));
+      renderHand(dealerCards, document.getElementById('dealer-hand'));
       checkGameStatus();
     });
 
-    hitBtn.addEventListener('click', () => {
+    document.getElementById('btn-hit').addEventListener('click', () => {
       playerCards.push(getRandomCard());
-      renderHand(playerCards, playerHand);
+      renderHand(playerCards, document.getElementById('player-hand'));
       checkGameStatus();
     });
 
-    standBtn.addEventListener('click', () => {
-      while (getHandValue(dealerCards) < 17) {
-        dealerCards.push(getRandomCard());
-      }
-      renderHand(dealerCards, dealerHand);
+    document.getElementById('btn-stand').addEventListener('click', () => {
+      const drawDealerCard = () => {
+        return new Promise(resolve => {
+          setTimeout(() => {
+            dealerCards.push(getRandomCard());
+            renderHand(dealerCards, document.getElementById('dealer-hand'));
+            resolve();
+          }, 800);
+        });
+      };
 
-      const playerValue = getHandValue(playerCards);
-      const dealerValue = getHandValue(dealerCards);
+      const dealerDraw = async () => {
+        while (getHandValue(dealerCards) < 17) {
+          await drawDealerCard();
+        }
+        const playerValue = getHandValue(playerCards);
+        const dealerValue = getHandValue(dealerCards);
+        if (dealerValue > 21 || playerValue > dealerValue) {
+          endGame('win');
+        } else if (dealerValue > playerValue) {
+          endGame('lose');
+        } else {
+          endGame('push');
+        }
+      };
 
-      if (dealerValue > 21 || playerValue > dealerValue) {
-        endGame('win');
-      } else if (dealerValue > playerValue) {
-        endGame('lose');
-      } else {
-        endGame('push');
-      }
+      dealerDraw();
     });
 
-    const chips = document.querySelectorAll('.chip');
-
-    chips.forEach(chip => {
+    document.querySelectorAll('.chip').forEach(chip => {
       chip.addEventListener('dragstart', e => {
         e.dataTransfer.setData('text/plain', chip.innerText);
       });
     });
 
-    bettingArea.addEventListener('dragover', e => e.preventDefault());
-    bettingArea.addEventListener('drop', e => {
+    document.getElementById('betting-area').addEventListener('dragover', e => e.preventDefault());
+    document.getElementById('betting-area').addEventListener('drop', e => {
       e.preventDefault();
       const amount = parseInt(e.dataTransfer.getData('text/plain'));
       if (!isNaN(amount) && amount <= balance) {
         currentBet = amount;
-        gameMessage.textContent = `Bet placed: $${amount}`;
-        startBtn.disabled = false;
+        document.getElementById('game-message').textContent = `Bet placed: $${amount}`;
+        document.getElementById('start-game').disabled = false;
+      }
+    });
+
+    // Hand value notifier
+    const valueDisplay = document.createElement('div');
+    valueDisplay.className = 'flex justify-between w-full max-w-4xl px-6 mb-2 text-sm text-gray-400';
+    valueDisplay.innerHTML = '<span id=\"player-value\">Player: 0</span><span id=\"dealer-value\">Dealer: 0</span>';
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const mainContainer = document.querySelector('main');
+      if (mainContainer) {
+        mainContainer.insertBefore(valueDisplay, mainContainer.firstElementChild);
       }
     });
 
