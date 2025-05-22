@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mock Casino - Blackjack</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .chip {
+      transition: transform 0.2s ease;
+      cursor: grab;
+    }
+    .chip:active {
+      transform: scale(0.95);
+    }
+    .card {
+      width: 60px;
+      height: 90px;
+      background-color: white;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 1.25rem;
+      color: black;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      animation: drawCard 0.5s ease forwards;
+    }
+    @keyframes drawCard {
+      from {
+        opacity: 0;
+        transform: translateY(-30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+  <header class="bg-gray-800 p-4 flex justify-between items-center shadow-md">
+    <h1 class="text-2xl font-bold text-blue-400">🃏 Blackjack</h1>
+    <div class="space-x-4">
+      <span class="bg-blue-700 px-3 py-1 rounded text-sm" id="balance-display">Balance: $100.00</span>
+    </div>
+  </header>
+
+  <main class="p-6 flex flex-col items-center">
+    <div class="bg-gray-800 rounded-lg p-6 w-full max-w-4xl flex flex-col items-center">
+      <div class="text-center mb-4">
+        <p class="text-gray-400 text-sm">BLACKJACK PAYS 3 TO 2</p>
+        <p class="text-gray-400 text-sm">INSURANCE PAYS 2 TO 1</p>
+        <p id="game-message" class="text-green-400 text-lg font-bold mt-2"></p>
+      </div>
+      <div class="bg-gray-700 rounded-full w-full h-64 flex items-center justify-around relative mb-6">
+        <div id="dealer-hand" class="flex space-x-4"></div>
+        <div id="player-hand" class="flex space-x-4"></div>
+      </div>
+
+      <div class="w-full flex flex-col items-center">
+        <div id="betting-area" class="border-2 border-dashed border-blue-400 rounded-lg w-48 h-16 flex items-center justify-center text-sm text-blue-300 mb-4">
+          Drop Chips Here
+        </div>
+        <button id="start-game" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded mb-4" disabled>Start Game</button>
+        <div class="flex space-x-4 mb-6">
+          <button id="btn-hit" class="bg-blue-500 px-4 py-2 rounded">Hit</button>
+          <button id="btn-stand" class="bg-red-500 px-4 py-2 rounded">Stand</button>
+        </div>
+
+        <div id="chip-bank" class="flex space-x-3 flex-wrap justify-center mb-2">
+          <div draggable="true" class="chip w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center">1</div>
+          <div draggable="true" class="chip w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">5</div>
+          <div draggable="true" class="chip w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">25</div>
+          <div draggable="true" class="chip w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center">50</div>
+          <div draggable="true" class="chip w-10 h-10 bg-red-600 rounded-full flex items-center justify-center">100</div>
+        </div>
+        <div class="text-gray-300 text-sm">Drag chips to the box above to place your bet</div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="bg-gray-800 mt-12 p-4 text-center text-sm text-gray-400">
+    &copy; 2025 Mock Casino. For educational use only.
+  </footer>
+
+  <script>
+    const suits = ['♠', '♥', '♦', '♣'];
+    const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+    const cardValues = { '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 10, 'Q': 10, 'K': 10, 'A': 11 };
+
+    let playerCards = [];
+    let dealerCards = [];
+    let balance = 100;
+    let currentBet = 0;
+
+    const getRandomCard = () => {
+      const rank = ranks[Math.floor(Math.random() * ranks.length)];
+      const suit = suits[Math.floor(Math.random() * suits.length)];
+      return { rank, suit };
+    };
+
+    const getHandValue = (cards) => {
+      let value = cards.reduce((sum, card) => sum + cardValues[card.rank], 0);
+      let aceCount = cards.filter(card => card.rank === 'A').length;
+      while (value > 21 && aceCount > 0) {
+        value -= 10;
+        aceCount--;
+      }
+      return value;
+    };
+
+    const renderHand = (hand, container) => {
+      container.innerHTML = '';
+      hand.forEach(card => {
+        const cardDiv = document.createElement('div');
+        cardDiv.className = 'card';
+        cardDiv.innerText = `${card.rank}${card.suit}`;
+        container.appendChild(cardDiv);
+      });
+    };
+
+    const dealerHand = document.getElementById('dealer-hand');
+    const playerHand = document.getElementById('player-hand');
+    const startBtn = document.getElementById('start-game');
+    const hitBtn = document.getElementById('btn-hit');
+    const standBtn = document.getElementById('btn-stand');
+    const balanceDisplay = document.getElementById('balance-display');
+    const gameMessage = document.getElementById('game-message');
+    const bettingArea = document.getElementById('betting-area');
+
+    const updateBalance = () => {
+      balanceDisplay.textContent = `Balance: $${balance.toFixed(2)}`;
+    };
+
+    const endGame = (result) => {
+      if (result === 'win') {
+        balance += currentBet;
+        gameMessage.textContent = 'You win!';
+      } else if (result === 'lose') {
+        balance -= currentBet;
+        gameMessage.textContent = 'You lose!';
+      } else {
+        gameMessage.textContent = 'Push!';
+      }
+      updateBalance();
+      currentBet = 0;
+      startBtn.disabled = true;
+    };
+
+    const checkGameStatus = () => {
+      const playerValue = getHandValue(playerCards);
+      const dealerValue = getHandValue(dealerCards);
+
+      if (playerValue === 21 && playerCards.length === 2) {
+        endGame('win');
+      } else if (playerValue > 21) {
+        endGame('lose');
+      }
+    };
+
+    startBtn.addEventListener('click', () => {
+      if (currentBet === 0) return;
+      gameMessage.textContent = '';
+      playerCards = [getRandomCard(), getRandomCard()];
+      dealerCards = [getRandomCard(), getRandomCard()];
+      renderHand(playerCards, playerHand);
+      renderHand(dealerCards, dealerHand);
+      checkGameStatus();
+    });
+
+    hitBtn.addEventListener('click', () => {
+      playerCards.push(getRandomCard());
+      renderHand(playerCards, playerHand);
+      checkGameStatus();
+    });
+
+    standBtn.addEventListener('click', () => {
+      while (getHandValue(dealerCards) < 17) {
+        dealerCards.push(getRandomCard());
+      }
+      renderHand(dealerCards, dealerHand);
+
+      const playerValue = getHandValue(playerCards);
+      const dealerValue = getHandValue(dealerCards);
+
+      if (dealerValue > 21 || playerValue > dealerValue) {
+        endGame('win');
+      } else if (dealerValue > playerValue) {
+        endGame('lose');
+      } else {
+        endGame('push');
+      }
+    });
+
+    const chips = document.querySelectorAll('.chip');
+
+    chips.forEach(chip => {
+      chip.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('text/plain', chip.innerText);
+      });
+    });
+
+    bettingArea.addEventListener('dragover', e => e.preventDefault());
+    bettingArea.addEventListener('drop', e => {
+      e.preventDefault();
+      const amount = parseInt(e.dataTransfer.getData('text/plain'));
+      if (!isNaN(amount) && amount <= balance) {
+        currentBet = amount;
+        gameMessage.textContent = `Bet placed: $${amount}`;
+        startBtn.disabled = false;
+      }
+    });
+
+    updateBalance();
+  </script>
+</body>
+</html>
